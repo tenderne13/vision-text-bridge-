@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isVaultEscapePath,
   resolveGenerationPath,
   resolveSettingsPath,
   resolveTemplatePath
@@ -23,5 +24,13 @@ describe("obsidian pathing", () => {
     expect(() => resolveSettingsPath("/vault", "Settings/../../outside.md")).toThrow(
       /outside the Obsidian vault/i
     );
+  });
+
+  it("treats Windows parent traversal as vault escape", () => {
+    expect(isVaultEscapePath("..\\outside.md")).toBe(true);
+  });
+
+  it("treats Windows absolute paths as vault escapes", () => {
+    expect(isVaultEscapePath("C:\\outside.md")).toBe(true);
   });
 });

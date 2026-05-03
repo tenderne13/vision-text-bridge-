@@ -1,10 +1,26 @@
-import { basename, join } from "node:path";
+import { basename, relative, resolve } from "node:path";
 
 export const DEFAULT_SETTINGS_PATH = "Settings/vision-text-bridge.md";
 export const DEFAULT_TEMPLATES_DIR = "Templates";
 
 function normalizeVaultRelativePath(relativePath: string) {
   return relativePath.replace(/\\/g, "/").replace(/^\/+/, "");
+}
+
+function assertPathInsideVault(vaultDir: string, relativePath: string) {
+  const vaultRoot = resolve(vaultDir);
+  const resolvedPath = resolve(vaultRoot, relativePath);
+  const relativeToVault = relative(vaultRoot, resolvedPath);
+
+  if (
+    relativeToVault === ".." ||
+    relativeToVault.startsWith("../") ||
+    relativeToVault.includes("/../")
+  ) {
+    throw new Error(`Resolved path is outside the Obsidian vault: ${relativePath}`);
+  }
+
+  return resolvedPath;
 }
 
 export function normalizeTemplateRelativePath(relativePath: string) {
@@ -18,7 +34,7 @@ export function normalizeTemplateRelativePath(relativePath: string) {
 }
 
 export function resolveVaultPath(vaultDir: string, relativePath: string) {
-  return join(vaultDir, normalizeVaultRelativePath(relativePath));
+  return assertPathInsideVault(vaultDir, normalizeVaultRelativePath(relativePath));
 }
 
 export function resolveTemplatePath(vaultDir: string, relativePath: string) {

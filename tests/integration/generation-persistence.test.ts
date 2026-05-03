@@ -52,4 +52,24 @@ describe("saveTemplate", () => {
       "一张{主体}的宣传海报"
     );
   });
+
+  it("rejects template traversal attempts outside the vault", async () => {
+    const vaultDir = mkdtempSync(join(tmpdir(), "vtb-"));
+
+    await expect(
+      saveTemplate(vaultDir, {
+        id: "tpl_003",
+        title: "危险路径",
+        sourceType: "prompt",
+        templateText: "一张{主体}的海报",
+        slots: [],
+        styleTags: [],
+        negativePrompt: "",
+        notes: "",
+        createdAt: "2026-05-03T00:00:00.000Z",
+        updatedAt: "2026-05-03T00:00:00.000Z",
+        obsidianPath: "Templates/../../outside.md"
+      })
+    ).rejects.toThrow(/outside the Obsidian vault/i);
+  });
 });

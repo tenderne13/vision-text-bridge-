@@ -2,16 +2,47 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: light;
+  --font-sans:
+    "Avenir Next", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC",
+    sans-serif;
+  --font-serif:
+    "Iowan Old Style", "Palatino Linotype", "Songti SC", "Noto Serif SC", serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 html,
 body {
   margin: 0;
   padding: 0;
 }
 
-body {
-  min-height: 100vh;
+html {
+  min-height: 100%;
+  background: #f6efe6;
 }
 
-main {
-  padding: 2rem;
+body {
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  color: #1f130c;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-serif);
+}
+
+::selection {
+  background: rgba(217, 119, 58, 0.22);
 }

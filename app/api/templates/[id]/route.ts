@@ -6,12 +6,13 @@ import { getVaultDir } from "@/lib/utils/env";
 export async function GET(
   _request: Request,
   context: {
-    params: {
+    params: Promise<{
       id: string;
-    };
+    }>;
   }
 ) {
-  const template = await getTemplateById(getVaultDir(), context.params.id);
+  const params = await context.params;
+  const template = await getTemplateById(getVaultDir(), params.id);
 
   if (!template) {
     return NextResponse.json({ message: "Template not found" }, { status: 404 });

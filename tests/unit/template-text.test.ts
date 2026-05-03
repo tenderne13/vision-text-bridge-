@@ -18,4 +18,12 @@ describe("renderTemplateText", () => {
 
     expect(result).toBe("一张咖啡杯的海报，风格为{style}");
   });
+
+  it("does not treat inherited properties as slot values", () => {
+    const result = renderTemplateText("一张{constructor}主题的海报", {
+      subject: "咖啡杯"
+    });
+
+    expect(result).toBe("一张{constructor}主题的海报");
+  });
 });

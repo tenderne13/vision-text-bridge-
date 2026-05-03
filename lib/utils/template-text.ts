@@ -5,7 +5,7 @@ export function renderTemplateText(
   return templateText.replace(/\{([^}]+)\}/g, (match, rawKey: string) => {
     const normalizedKey = rawKey.trim();
 
-    if (normalizedKey in slotValues) {
+    if (Object.prototype.hasOwnProperty.call(slotValues, normalizedKey)) {
       return slotValues[normalizedKey];
     }
 

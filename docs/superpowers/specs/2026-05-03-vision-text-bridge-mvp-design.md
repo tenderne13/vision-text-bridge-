@@ -401,6 +401,7 @@ For MVP:
 
 - Provider abstraction is required
 - Only OpenAI is implemented initially
+- For local development and automated tests, a mock provider fallback is allowed when `OPENAI_API_KEY` is absent
 - Vision analysis uses the OpenAI image-capable model path
 - Image generation focuses on text-to-image
 - Image-to-image is not implemented yet, but interface space should be reserved

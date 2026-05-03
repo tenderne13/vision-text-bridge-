@@ -56,3 +56,15 @@ export function parseSettingsMarkdown(markdown: string) {
 
   return data as Partial<Settings>;
 }
+
+export function parseTemplateMarkdown(markdown: string) {
+  const { data } = matter(markdown);
+
+  return data as Partial<Template>;
+}
+
+export function parseGenerationMarkdown(markdown: string) {
+  const { data } = matter(markdown);
+
+  return data as Partial<Generation>;
+}

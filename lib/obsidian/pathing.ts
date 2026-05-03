@@ -2,6 +2,7 @@ import { basename, posix, relative, resolve, win32 } from "node:path";
 
 export const DEFAULT_SETTINGS_PATH = "Settings/vision-text-bridge.md";
 export const DEFAULT_TEMPLATES_DIR = "Templates";
+export const DEFAULT_GENERATIONS_DIR = "Generations";
 
 function normalizeVaultRelativePath(relativePath: string) {
   return relativePath.replace(/\\/g, "/").replace(/^\/+/, "");

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ZodError } from "zod";
 
 import { generationSchema } from "@/lib/schema/generation";
 import {
@@ -6,6 +7,7 @@ import {
   saveGeneration
 } from "@/lib/services/generation-repository";
 import { getVaultDir } from "@/lib/utils/env";
+import { handleGenerationRequest } from "@/app/api/generations/utils";
 
 export async function GET() {
   const generations = await listGenerations(getVaultDir());
@@ -14,8 +16,19 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const generation = generationSchema.parse(await request.json());
-  const savedGeneration = await saveGeneration(getVaultDir(), generation);
+  const body = await request.json();
 
-  return NextResponse.json(savedGeneration, { status: 201 });
+  try {
+    const generation = generationSchema.parse(body);
+    const savedGeneration = await saveGeneration(getVaultDir(), generation);
+
+    return NextResponse.json(savedGeneration, { status: 201 });
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const generated = await handleGenerationRequest(getVaultDir(), body);
+      return NextResponse.json(generated, { status: 201 });
+    }
+
+    throw error;
+  }
 }

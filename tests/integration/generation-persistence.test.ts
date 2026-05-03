@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { saveTemplate } from "@/lib/services/template-repository";
+import { loadSettings, saveSettings } from "@/lib/services/settings-service";
 
 describe("saveTemplate", () => {
   it("writes template markdown into the Obsidian template folder", async () => {
@@ -71,5 +72,27 @@ describe("saveTemplate", () => {
         obsidianPath: "Templates/../../outside.md"
       })
     ).rejects.toThrow(/outside the Obsidian vault/i);
+  });
+});
+
+describe("settings-service", () => {
+  it("persists obsidian vault settings", async () => {
+    const vaultDir = mkdtempSync(join(tmpdir(), "vtb-"));
+
+    await saveSettings(vaultDir, {
+      vaultPath: vaultDir,
+      defaultTopic: "默认主题",
+      templatesDir: "Templates",
+      generationsDir: "Generations",
+      assetsDir: "Assets/generated",
+      provider: "openai",
+      model: "gpt-image-1"
+    });
+
+    const settings = await loadSettings(vaultDir);
+
+    expect(settings.defaultTopic).toBe("默认主题");
+    expect(settings.provider).toBe("openai");
+    expect(settings.model).toBe("gpt-image-1");
   });
 });

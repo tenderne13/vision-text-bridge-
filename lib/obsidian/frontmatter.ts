@@ -45,7 +45,9 @@ export function serializeSettingsMarkdown(settings: Settings) {
       `- Templates: ${settings.templatesDir}`,
       `- Generations: ${settings.generationsDir}`,
       `- Assets: ${settings.assetsDir}`,
-      `- Default Topic: ${settings.defaultTopic || "未设置"}`
+      `- Default Topic: ${settings.defaultTopic || "未设置"}`,
+      `- Provider: ${settings.provider}`,
+      `- Model: ${settings.model}`
     ].join("\n"),
     settings
   );

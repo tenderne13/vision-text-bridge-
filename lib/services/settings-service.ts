@@ -7,7 +7,9 @@ function createDefaultSettings(vaultDir: string): Settings {
     defaultTopic: "",
     templatesDir: "Templates",
     generationsDir: "Generations",
-    assetsDir: "Assets/generated"
+    assetsDir: "Assets/generated",
+    provider: "openai",
+    model: "gpt-image-1"
   });
 }
 

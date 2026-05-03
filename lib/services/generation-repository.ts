@@ -1,9 +1,11 @@
-import { readdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, extname, join, posix } from "node:path";
 
 import { parseGenerationMarkdown } from "@/lib/obsidian/frontmatter";
-import { DEFAULT_GENERATIONS_DIR } from "@/lib/obsidian/pathing";
+import { DEFAULT_GENERATIONS_DIR, resolveVaultPath } from "@/lib/obsidian/pathing";
+import type { GeneratedImage } from "@/lib/providers/types";
 import { generationSchema, type Generation } from "@/lib/schema/generation";
+import { slugifyPathSegment } from "@/lib/utils/slug";
 import { writeGenerationFile } from "@/lib/obsidian/generation-files";
 
 async function collectMarkdownFiles(rootDir: string): Promise<string[]> {
@@ -32,6 +34,35 @@ export async function saveGeneration(vaultDir: string, generation: Generation) {
   await writeGenerationFile(vaultDir, parsedGeneration);
 
   return parsedGeneration;
+}
+
+export async function saveGeneratedImages(
+  vaultDir: string,
+  images: GeneratedImage[],
+  options: {
+    assetsDir: string;
+    topic: string;
+    generationId: string;
+  }
+) {
+  const topicSegment = slugifyPathSegment(options.topic || "default-topic");
+  const savedPaths: string[] = [];
+
+  for (const [index, image] of images.entries()) {
+    const extension = extname(image.fileName) || ".png";
+    const relativePath = posix.join(
+      options.assetsDir,
+      topicSegment,
+      `${options.generationId}-${index + 1}${extension}`
+    );
+    const fullPath = resolveVaultPath(vaultDir, relativePath);
+
+    await mkdir(dirname(fullPath), { recursive: true });
+    await writeFile(fullPath, Buffer.from(image.base64, "base64"));
+    savedPaths.push(relativePath);
+  }
+
+  return savedPaths;
 }
 
 export async function listGenerations(vaultDir: string) {

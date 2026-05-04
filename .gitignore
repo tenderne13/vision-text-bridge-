@@ -1,2 +1,8 @@
 .superpowers/
 .worktrees/
+.next/
+.obsidian-vault/
+node_modules/
+*.tsbuildinfo
+test-results/
+playwright-report/

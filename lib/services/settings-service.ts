@@ -8,8 +8,11 @@ function createDefaultSettings(vaultDir: string): Settings {
     templatesDir: "Templates",
     generationsDir: "Generations",
     assetsDir: "Assets/generated",
-    provider: "openai",
-    model: "gpt-image-1"
+    provider: process.env.AI_PROVIDER_MODE ?? "openai",
+    model:
+      process.env.AI_PROVIDER_MODE === "codex-chatgpt-web"
+        ? "chatgpt-web"
+        : "gpt-image-1"
   });
 }
 

@@ -95,4 +95,23 @@ describe("settings-service", () => {
     expect(settings.provider).toBe("openai");
     expect(settings.model).toBe("gpt-image-1");
   });
+
+  it("persists codex-chatgpt-web settings", async () => {
+    const vaultDir = mkdtempSync(join(tmpdir(), "vtb-"));
+
+    await saveSettings(vaultDir, {
+      vaultPath: vaultDir,
+      defaultTopic: "默认主题",
+      templatesDir: "Templates",
+      generationsDir: "Generations",
+      assetsDir: "Assets/generated",
+      provider: "codex-chatgpt-web",
+      model: "chatgpt-web"
+    });
+
+    const settings = await loadSettings(vaultDir);
+
+    expect(settings.provider).toBe("codex-chatgpt-web");
+    expect(settings.model).toBe("chatgpt-web");
+  });
 });

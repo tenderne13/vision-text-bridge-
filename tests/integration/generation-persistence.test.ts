@@ -114,4 +114,44 @@ describe("settings-service", () => {
     expect(settings.provider).toBe("codex-chatgpt-web");
     expect(settings.model).toBe("chatgpt-web");
   });
+
+  it("uses codex-chatgpt-web defaults when settings file is missing", async () => {
+    const vaultDir = mkdtempSync(join(tmpdir(), "vtb-"));
+    const originalProviderMode = process.env.AI_PROVIDER_MODE;
+
+    process.env.AI_PROVIDER_MODE = "codex-chatgpt-web";
+
+    try {
+      const settings = await loadSettings(vaultDir);
+
+      expect(settings.provider).toBe("codex-chatgpt-web");
+      expect(settings.model).toBe("chatgpt-web");
+    } finally {
+      if (originalProviderMode === undefined) {
+        delete process.env.AI_PROVIDER_MODE;
+      } else {
+        process.env.AI_PROVIDER_MODE = originalProviderMode;
+      }
+    }
+  });
+
+  it("falls back to openai defaults when AI_PROVIDER_MODE is invalid", async () => {
+    const vaultDir = mkdtempSync(join(tmpdir(), "vtb-"));
+    const originalProviderMode = process.env.AI_PROVIDER_MODE;
+
+    process.env.AI_PROVIDER_MODE = "not-a-provider";
+
+    try {
+      const settings = await loadSettings(vaultDir);
+
+      expect(settings.provider).toBe("openai");
+      expect(settings.model).toBe("gpt-image-1");
+    } finally {
+      if (originalProviderMode === undefined) {
+        delete process.env.AI_PROVIDER_MODE;
+      } else {
+        process.env.AI_PROVIDER_MODE = originalProviderMode;
+      }
+    }
+  });
 });

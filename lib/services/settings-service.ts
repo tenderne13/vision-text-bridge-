@@ -1,18 +1,27 @@
 import { readSettingsFile, writeSettingsFile } from "@/lib/obsidian/settings-file";
-import { settingsSchema, type Settings } from "@/lib/schema/settings";
+import {
+  providerModeSchema,
+  settingsSchema,
+  type Settings
+} from "@/lib/schema/settings";
+
+function getDefaultProviderMode() {
+  const parsedProviderMode = providerModeSchema.safeParse(process.env.AI_PROVIDER_MODE);
+
+  return parsedProviderMode.success ? parsedProviderMode.data : "openai";
+}
 
 function createDefaultSettings(vaultDir: string): Settings {
+  const providerMode = getDefaultProviderMode();
+
   return settingsSchema.parse({
     vaultPath: vaultDir,
     defaultTopic: "",
     templatesDir: "Templates",
     generationsDir: "Generations",
     assetsDir: "Assets/generated",
-    provider: process.env.AI_PROVIDER_MODE ?? "openai",
-    model:
-      process.env.AI_PROVIDER_MODE === "codex-chatgpt-web"
-        ? "chatgpt-web"
-        : "gpt-image-1"
+    provider: providerMode,
+    model: providerMode === "codex-chatgpt-web" ? "chatgpt-web" : "gpt-image-1"
   });
 }
 

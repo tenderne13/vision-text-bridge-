@@ -1,6 +1,6 @@
-import { execFile } from "node:child_process";
+import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { unlink, writeFile } from "node:fs/promises";
+import { readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -13,8 +13,7 @@ import {
 } from "@/lib/providers/types";
 
 const CODEX_EXEC_OPTIONS = {
-  timeout: 120000,
-  maxBuffer: 1024 * 1024 * 4
+  timeout: 120000
 } as const;
 
 const IMAGE_FILE_EXTENSIONS = {
@@ -41,6 +40,10 @@ function parseTemplateDraft(stdout: string): ProviderTemplateDraft {
   try {
     return providerTemplateDraftSchema.parse(JSON.parse(stdout));
   } catch (error) {
+    console.error("[CodexCliProvider] parseTemplateDraft failed", {
+      outputLength: stdout.length,
+      outputPreview: stdout.slice(0, 400)
+    });
     throw new Error(`Codex output was not valid template JSON: ${(error as Error).message}`);
   }
 }
@@ -76,25 +79,151 @@ function createExecErrorMessage(
   return `Codex CLI ${context} failed${exitDetail}.${stderrDetail}`.trim();
 }
 
-function execFileAsync(
+function execCodex(
   args: string[],
+  input: string,
   context: "prompt extraction" | "image extraction"
 ) {
   return new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
-    execFile(
+    const child = spawn(
       "codex",
       args,
-      CODEX_EXEC_OPTIONS,
-      (error, stdout, stderr) => {
-        if (error) {
-          reject(new Error(createExecErrorMessage(context, error, stderr)));
-          return;
-        }
-
-        resolve({ stdout, stderr });
-      }
+      { stdio: "pipe" }
     );
+
+    let stdout = "";
+    let stderr = "";
+    let settled = false;
+
+    const timeoutId = setTimeout(() => {
+      child.kill("SIGTERM");
+    }, CODEX_EXEC_OPTIONS.timeout);
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+
+    child.on("error", (error) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      clearTimeout(timeoutId);
+      reject(new Error(createExecErrorMessage(context, error, stderr)));
+    });
+
+    child.on("close", (code, signal) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      clearTimeout(timeoutId);
+
+      if (code !== 0) {
+        reject(
+          new Error(
+            createExecErrorMessage(
+              context,
+              Object.assign(new Error("Codex CLI failed"), {
+                code: code ?? undefined,
+                signal,
+                killed: signal === "SIGTERM"
+              }) as NodeJS.ErrnoException,
+              stderr
+            )
+          )
+        );
+        return;
+      }
+
+      resolve({ stdout, stderr });
+    });
+
+    child.stdin.write(input);
+    child.stdin.end();
   });
+}
+
+async function readOutputFile(outputFilePath: string) {
+  return readFile(outputFilePath, "utf8");
+}
+
+async function getFileState(outputFilePath: string) {
+  try {
+    const fileStat = await stat(outputFilePath);
+
+    return {
+      exists: true,
+      size: fileStat.size
+    };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return {
+        exists: false,
+        size: 0
+      };
+    }
+
+    throw error;
+  }
+}
+
+function extractJsonLineFromStderr(stderr: string) {
+  const lines = stderr
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const line = lines[index];
+
+    if (line.startsWith("{") && line.endsWith("}")) {
+      return line;
+    }
+  }
+
+  return "";
+}
+
+async function resolveFinalMessage(outputFilePath: string, stdout: string, stderr: string) {
+  try {
+    const fileContents = await readOutputFile(outputFilePath);
+    console.error("[CodexCliProvider] resolveFinalMessage: using output file", {
+      outputFilePath,
+      outputLength: fileContents.length
+    });
+    return fileContents;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      if (stdout.trim()) {
+        console.error("[CodexCliProvider] resolveFinalMessage: output file missing, using stdout", {
+          outputFilePath,
+          stdoutLength: stdout.length,
+          stderrLength: stderr.length
+        });
+        return stdout;
+      }
+
+      const stderrJson = extractJsonLineFromStderr(stderr);
+
+      if (stderrJson) {
+        console.error("[CodexCliProvider] resolveFinalMessage: output file missing, using stderr json line", {
+          outputFilePath,
+          stderrLength: stderr.length,
+          stderrJsonLength: stderrJson.length
+        });
+        return stderrJson;
+      }
+    }
+
+    throw error;
+  }
 }
 
 export class CodexCliProvider implements AiProvider {
@@ -103,32 +232,102 @@ export class CodexCliProvider implements AiProvider {
   async analyzeImageToTemplate(input: ImageTemplateInput) {
     const extension = getImageExtension(input.mimeType);
     const filePath = join(tmpdir(), `vtb-${randomUUID()}.${extension}`);
+    const outputFilePath = join(tmpdir(), `vtb-${randomUUID()}.json`);
 
     await writeFile(filePath, Buffer.from(input.imageBase64, "base64"));
+    await writeFile(outputFilePath, "", "utf8");
+    console.error("[CodexCliProvider] analyzeImageToTemplate: prepared files", {
+      imageFilePath: filePath,
+      outputFilePath,
+      mimeType: input.mimeType,
+      model: this.model
+    });
 
     try {
-      const { stdout } = await execFileAsync(
-        ["exec", "--model", this.model, "--image", filePath, buildImageExtractionInput()],
+      const args = [
+        "exec",
+        "--ignore-rules",
+        "--model",
+        this.model,
+        "--image",
+        filePath,
+        "-o",
+        outputFilePath,
+        "-"
+      ];
+      const { stdout, stderr } = await execCodex(
+        args,
+        buildImageExtractionInput(),
         "image extraction"
       );
+      const fileState = await getFileState(outputFilePath);
+      console.error("[CodexCliProvider] analyzeImageToTemplate: codex exec completed", {
+        args,
+        stdoutLength: stdout.length,
+        stderrLength: stderr.length,
+        outputFileExists: fileState.exists,
+        outputFileSize: fileState.size
+      });
 
-      return parseTemplateDraft(stdout);
+      return parseTemplateDraft(await resolveFinalMessage(outputFilePath, stdout, stderr));
     } finally {
       try {
         await unlink(filePath);
       } catch {
         // Best-effort cleanup for temp image files.
       }
+
+      try {
+        await unlink(outputFilePath);
+      } catch {
+        // Best-effort cleanup for final-message files.
+      }
     }
   }
 
   async extractPromptToTemplate(input: { prompt: string }) {
-    const { stdout } = await execFileAsync(
-      ["exec", "--model", this.model, buildPromptExtractionInput(input.prompt)],
-      "prompt extraction"
-    );
+    const outputFilePath = join(tmpdir(), `vtb-${randomUUID()}.json`);
+    await writeFile(outputFilePath, "", "utf8");
+    console.error("[CodexCliProvider] extractPromptToTemplate: prepared output file", {
+      outputFilePath,
+      model: this.model,
+      promptLength: input.prompt.length
+    });
 
-    return parseTemplateDraft(stdout);
+    try {
+      const args = [
+        "exec",
+        "--ignore-rules",
+        "--model",
+        this.model,
+        "-o",
+        outputFilePath,
+        "-"
+      ];
+      const { stdout, stderr } = await execCodex(
+        args,
+        buildPromptExtractionInput(input.prompt),
+        "prompt extraction"
+      );
+      const fileState = await getFileState(outputFilePath);
+      console.error("[CodexCliProvider] extractPromptToTemplate: codex exec completed", {
+        args,
+        stdoutLength: stdout.length,
+        stderrLength: stderr.length,
+        outputFileExists: fileState.exists,
+        outputFileSize: fileState.size,
+        stdoutPreview: stdout.slice(0, 400),
+        stderrPreview: stderr.slice(0, 400)
+      });
+
+      return parseTemplateDraft(await resolveFinalMessage(outputFilePath, stdout, stderr));
+    } finally {
+      try {
+        await unlink(outputFilePath);
+      } catch {
+        // Best-effort cleanup for final-message files.
+      }
+    }
   }
 
   async generateImageFromTemplate(_input: GenerateImageInput) {

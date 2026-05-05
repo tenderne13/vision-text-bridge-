@@ -25,6 +25,31 @@ export VISION_TEXT_BRIDGE_VAULT_DIR="/absolute/path/to/your/obsidian-vault"
 
 如果未设置 `OPENAI_API_KEY`，应用会自动退回到本地 mock provider，便于本地开发、E2E 测试和演示。
 
+### 使用本机 Codex 抽取模板
+
+如果你没有配置 `OPENAI_API_KEY`，但本机已经安装并登录了 `codex`，可以切到本机模式试用模板抽取：
+
+```bash
+export AI_PROVIDER_MODE="codex-chatgpt-web"
+export CODEX_TEMPLATE_MODEL="gpt-5.3-codex"
+export VISION_TEXT_BRIDGE_VAULT_DIR="/absolute/path/to/your/obsidian-vault"
+```
+
+或者直接在项目根目录使用 `.env`：
+
+```dotenv
+AI_PROVIDER_MODE=codex-chatgpt-web
+CODEX_TEMPLATE_MODEL=gpt-5.3-codex
+VISION_TEXT_BRIDGE_VAULT_DIR=/absolute/path/to/your/obsidian-vault
+```
+
+当前这条链路只适合试用：
+
+- `描述词生成模板`
+- `图片生成模板`
+
+当前还不建议试用 `模板生成图片`，因为 ChatGPT 网页自动出图 provider 仍在实现中。
+
 3. 启动开发服务
 
 ```bash
@@ -57,6 +82,8 @@ pnpm build
 | 变量名 | 说明 | 必填 |
 | --- | --- | --- |
 | `OPENAI_API_KEY` | OpenAI API Key；缺失时自动使用 mock provider | 否 |
+| `AI_PROVIDER_MODE` | Provider 模式；试用本机 Codex 时设为 `codex-chatgpt-web` | 否 |
+| `CODEX_TEMPLATE_MODEL` | Codex 模板抽取模型，默认 `gpt-5.3-codex` | 否 |
 | `VISION_TEXT_BRIDGE_VAULT_DIR` | Obsidian Vault 根目录 | 否 |
 | `OBSIDIAN_VAULT_DIR` | Vault 根目录的兼容别名 | 否 |
 | `OPENAI_TEMPLATE_MODEL` | 模板抽取模型，默认 `gpt-4.1-mini` | 否 |

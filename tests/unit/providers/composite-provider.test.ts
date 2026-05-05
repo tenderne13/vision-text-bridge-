@@ -3,6 +3,34 @@ import { describe, expect, it, vi } from "vitest";
 import { CompositeAiProvider } from "@/lib/providers/composite";
 
 describe("CompositeAiProvider", () => {
+  it("delegates image analysis to the extraction provider", async () => {
+    const extraction = {
+      analyzeImageToTemplate: vi.fn().mockResolvedValue({
+        title: "图",
+        templateText: "x",
+        slots: [],
+        styleTags: [],
+        negativePrompt: ""
+      }),
+      extractPromptToTemplate: vi.fn()
+    };
+    const generation = {
+      generateImageFromTemplate: vi.fn()
+    };
+
+    const provider = new CompositeAiProvider(extraction as never, generation as never);
+    await provider.analyzeImageToTemplate({
+      imageBase64: "ZmFrZQ==",
+      mimeType: "image/png"
+    });
+
+    expect(extraction.analyzeImageToTemplate).toHaveBeenCalledWith({
+      imageBase64: "ZmFrZQ==",
+      mimeType: "image/png"
+    });
+    expect(generation.generateImageFromTemplate).not.toHaveBeenCalled();
+  });
+
   it("delegates extraction to the extraction provider", async () => {
     const extraction = {
       analyzeImageToTemplate: vi.fn().mockResolvedValue({

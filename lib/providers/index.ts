@@ -15,7 +15,7 @@ export function getAiProvider(options: ProviderOptions = {}) {
 
   if (
     providerMode === "mock" ||
-    (!process.env.OPENAI_API_KEY && providerMode === "openai")
+    (!process.env.OPENAI_API_KEY && providerMode !== "codex-chatgpt-web")
   ) {
     return new MockAiProvider();
   }
